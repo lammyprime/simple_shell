@@ -18,4 +18,8 @@ fi
 
 echo -e "Running testexec with valgrind . . .\n"
 
+<<<<<<< HEAD
 valgrind --show-leak-kinds=all --leak-check=full --track-origins=yes ./hsh
+=======
+valgrind --show-leak-kinds=all --tool=memcheck --leak-check=full --track-origins=yes ./hsh
+>>>>>>> a1292ece4353cc6a3332e657e17ddcfb0f7832d8
