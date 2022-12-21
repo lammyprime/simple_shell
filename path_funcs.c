@@ -1,9 +1,59 @@
 #include "shell.h"
 
 /**
- * add_node_end - adds a new node at the end of the list_t list
- * @head: pointer to list
- * @str: string to add
+ * expand_var - expands a variable to its corresponding value
+ * @shell: pointer to shell structure
+ *
+ * Return: void
+ */
+void expand_var(sh_data *shell)
+{
+	int i, j, k;
+	char *str, *value;
+
+	for (i = 0; shell->arr[i]; i++)
+	{
+		if (my_strcmp(shell->arr[i], "$$") == 0)
+		{
+			free(shell->arr[i]);
+			str = my_itoa(shell->pid);
+			shell->arr[i] = my_strdup(str);
+			free(str);
+		}
+		else if (my_strcmp(shell->arr[i], "$?") == 0)
+		{
+			free(shell->arr[i]);
+			str = my_itoa(shell->status);
+			shell->arr[i] = my_strdup(str);
+			free(str);
+		}
+		else if (shell->arr[i][0] == '$')
+		{
+			str = malloc(sizeof(char) * my_strlen(shell->arr[i]));
+			for (j = 1, k = 0; shell->arr[i][j]; j++, k++)
+				str[k] = shell->arr[i][j];
+			str[k] = '\0';
+			value = _getenv(shell, str);
+			if (value == NULL)
+			{
+				free(value);
+				free(str);
+			}
+			else
+			{
+				free(shell->arr[i]);
+				free(str);
+				shell->arr[i] = my_strdup(value);
+				free(value);
+			}
+		}
+	}
+}
+
+/**
+ * add_node_end - adds a new node at the end of the path_l linked list
+ * @head: pointer to the list
+ * @str: string to add to the end of the list
  *
  * Return: address of new list
  */
@@ -37,51 +87,51 @@ path_l *add_node_end(path_l **head, char *str)
 /**
  * path_to_list - creates a linked list of each directory contained in the PATH
  * environment variable
- * @environ: the environment
+ * @shell: the shell environment's struct
  *
- * Return: void
+ * Return: a linked list containing the PATH's paths
  */
-path_l *path_to_list(char **environ)
+path_l *path_to_list(sh_data *shell)
 {
 	char path[5] = "PATH";
 	int i, j, k, check;
 	path_l *head = NULL;
 	char *str;
 
-	for (i = 0; environ[i]; i++)
+	for (i = 0; shell->_environ[i]; i++)
 	{
 		j = 0, check = 0;
-		while (environ[i][j] != '=' && path[j] != '\0')
+		while (shell->_environ[i][j] != '=' && path[j] != '\0')
 		{
-			if (environ[i][j] != path[j])
+			if (shell->_environ[i][j] != path[j])
 				check = 1;
 			j++;
 		} k = 0;
 		if (check == 0)
 		{
 			j++;
-			while (environ[i][j])
+			while (shell->_environ[i][j])
 			{
-				if (environ[i][j] == ':')
+				if (shell->_environ[i][j] == ':')
 				{
 					str[k] = '\0', k = 0;
 					add_node_end(&head, str);
 					free(str);
-
 				}
 				else
 				{
 					if (k == 0)
 						str = malloc(sizeof(char) * 150);
-					str[k] = environ[i][j], k++;
+					str[k] = shell->_environ[i][j], k++;
 				} j++;
-			}
-			str[k] = '\0';
+			} str[k] = '\0';
 			add_node_end(&head, str);
 			free(str);
 			break;
 		}
-	}
+	} str = _getenv(shell, "PWD");
+	add_node_end(&head, str);
+	free(str);
 	return (head);
 }
 
@@ -105,8 +155,13 @@ char *search_path(path_l *list, char *file)
 		if (file[0] == '/')
 		{
 			free(path);
-			path = my_strdup(file);
-			return (path);
+			if (stat(file, &s) == 0)
+			{
+				path = my_strdup(file);
+				return (path);
+			}
+			else
+				return (NULL);
 		}
 
 		my_strcpy(path, temp->str);
@@ -120,29 +175,4 @@ char *search_path(path_l *list, char *file)
 	}
 
 	return (NULL);
-}
-
-/**
- * free_list - frees the path_l linked list
- * @head: pointer to the list
- *
- * Return: non
- */
-void free_list(path_l *head)
-{
-	path_l *temp = head, *second;
-
-	if (head)
-	{
-		while (temp->next)
-		{
-			second = temp;
-			temp = temp->next;
-			free(second->str);
-			free(second);
-		}
-
-		free(temp->str);
-		free(temp);
-	}
 }
